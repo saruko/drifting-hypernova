@@ -33,7 +33,7 @@ def _build_date_range() -> tuple[str, str]:
     return min_date.strftime("%Y/%m/%d"), max_date.strftime("%Y/%m/%d")
 
 
-def search_pmids(mesh_query: str, retmax: int = 500) -> list[str]:
+def search_pmids(mesh_query: str, retmax: int = 2000) -> list[str]:
     """
     MeSH クエリで PubMed を検索し、PMID リストを返す。
 

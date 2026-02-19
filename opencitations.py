@@ -42,19 +42,19 @@ def get_citation_increase(doi: str) -> int | None:
 
     # 先月末日・先々月末日を算出
     now = datetime.now()
+    # 今月の1日から1日引く = 先月末日
     end_of_last_month = date(now.year, now.month, 1) - relativedelta(days=1)
-    end_of_prev_month = end_of_last_month - relativedelta(months=1)
-    # 先々月末日を月初から1日引いて算出
-    end_of_prev_month = date(
-        end_of_last_month.year, end_of_last_month.month, 1
-    ) - relativedelta(days=1)
+    # 先月の1日から1日引く = 先々月末日
+    end_of_prev_month = date(end_of_last_month.year, end_of_last_month.month, 1) - relativedelta(days=1)
 
     end_count = 0
     start_count = 0
+    no_creation_count = 0
 
     for citation in citations:
         creation = citation.get("creation")
         if not creation:
+            no_creation_count += 1
             continue  # creation 未記載のレコードは除外
 
         citation_date = _parse_creation_date(creation)
@@ -67,9 +67,10 @@ def get_citation_increase(doi: str) -> int | None:
             start_count += 1
 
     increase = end_count - start_count
-    logger.debug(
-        f"DOI={doi}: end_count={end_count}, start_count={start_count}, "
-        f"increase={increase}"
+    logger.info(
+        f"DOI={doi}: 引用総数={len(citations)}, "
+        f"~{end_of_last_month}={end_count}, ~{end_of_prev_month}={start_count}, "
+        f"増加={increase}, creation未記載={no_creation_count}"
     )
     return increase
 
@@ -90,7 +91,7 @@ def _fetch_citations(doi: str) -> list[dict] | None:
         resp = requests.get(url, timeout=60)
         resp.raise_for_status()
         data = resp.json()
-        logger.debug(f"OpenCitations: DOI={doi}, {len(data)} 件の引用レコード取得")
+        logger.info(f"OpenCitations: DOI={doi}, {len(data)} 件の引用レコード取得")
         return data
     except requests.RequestException as e:
         logger.error(f"OpenCitations API リクエスト失敗 (DOI={doi}): {e}")

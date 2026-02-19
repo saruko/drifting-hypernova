@@ -107,17 +107,38 @@ def run(dry_run: bool = False) -> None:
     # ステップ 5-6: 引用数差分計算 + DB記録
     logger.info("ステップ 5-6: OpenCitations で引用数差分計算 + DB 記録")
     detected_month = _get_detected_month()
+    logger.info(f"  検知対象月: {detected_month}")
     spike_count = 0
 
-    for article in articles:
+    # 統計カウンター
+    stats_no_doi = 0
+    stats_api_fail = 0
+    stats_zero_citations = 0
+    stats_has_citations = 0
+    stats_increase_zero = 0
+    stats_increase_positive = 0
+    all_increases = []
+
+    total = len(articles)
+    for idx, article in enumerate(articles, 1):
         doi = article.get("doi")
         if not doi:
-            logger.debug(f"DOI なし: PMID={article['pmid']} — スキップ")
+            stats_no_doi += 1
             continue
+
+        if idx % 50 == 0:
+            logger.info(f"  進捗: {idx}/{total} 件処理済み...")
 
         increase = get_citation_increase(doi)
         if increase is None:
+            stats_api_fail += 1
             continue
+
+        all_increases.append(increase)
+        if increase == 0:
+            stats_increase_zero += 1
+        elif increase > 0:
+            stats_increase_positive += 1
 
         if increase > threshold:
             spike_count += 1
@@ -135,7 +156,17 @@ def run(dry_run: bool = False) -> None:
                 detected_month=detected_month,
             )
 
-    logger.info(f"  閾値超過論文: {spike_count} 件")
+    # 統計サマリーを出力
+    logger.info("  === OpenCitations 処理統計 ===")
+    logger.info(f"  総論文数:           {total}")
+    logger.info(f"  DOI なし:           {stats_no_doi}")
+    logger.info(f"  API 失敗:           {stats_api_fail}")
+    logger.info(f"  増加数 = 0:         {stats_increase_zero}")
+    logger.info(f"  増加数 > 0:         {stats_increase_positive}")
+    logger.info(f"  閾値超過 (>{threshold}):    {spike_count}")
+    if all_increases:
+        logger.info(f"  増加数 最大値:      {max(all_increases)}")
+        logger.info(f"  増加数 Top5:        {sorted(all_increases, reverse=True)[:5]}")
 
     # ステップ 7: 未通知レコード取得
     logger.info("ステップ 7: 未通知レコードの取得")
