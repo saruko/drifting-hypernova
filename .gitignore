@@ -1,0 +1,5 @@
+# citation_alerts.db
+*.db
+__pycache__/
+*.pyc
+.env

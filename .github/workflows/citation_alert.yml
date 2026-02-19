@@ -1,0 +1,53 @@
+name: PubMed Citation Spike Alert
+
+on:
+  schedule:
+    # 毎月1日 UTC 00:00 (JST 09:00)
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+    # 手動実行も可能
+
+jobs:
+  citation-alert:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # SQLite DB を artifacts から復元（存在する場合）
+      - name: Download previous DB artifact
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          name: citation-alerts-db
+          path: .
+          if_no_artifact_found: warn
+        continue-on-error: true
+
+      - name: Run Citation Alert System
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python main.py
+
+      # SQLite DB を artifacts として保存
+      - name: Upload DB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: citation-alerts-db
+          path: citation_alerts.db
+          retention-days: 90
+          if-no-files-found: warn
